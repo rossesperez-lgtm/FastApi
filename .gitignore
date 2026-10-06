@@ -1,7 +1,1 @@
-.env
-database.db
-__pycache__
-*.pyc
-*.py[cod] 
-.pytest_cache 
-.env database.db
+__pycache__/ *.py[cod] .pytest_cache/ .env database.db

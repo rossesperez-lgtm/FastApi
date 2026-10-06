@@ -26,7 +26,7 @@ app.include_router(users.router)
 #app.include_router(jwt_auth_users.router)
 app.include_router(jwt_auth_users_SQLModel.router)
 #app.include_router(basic_auth_users.router)
-app.mount("/statico", StaticFiles(directory="static"), name="statico")
+app.mount("/statico", StaticFiles(directory="Static"), name="statico")
 
 @app.get("/")
 async def root():
