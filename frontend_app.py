@@ -123,7 +123,7 @@ def api_update_item(item_id, title, description):
 
 def api_get_all_users():
     """Obtiene la lista de usuarios registrados desde la API."""
-    return requests.get(f"{BASE_URL}/users")
+    return requests.get(f"{BASE_URL}/users", timeout=TIMEOUT)
 
 
 def api_update_user(username, **campos):
@@ -177,15 +177,18 @@ def authenticated_request(method, url, **kwargs):
     """
     headers = kwargs.pop("headers", {})
     headers.update(auth_headers())
-    kwargs.setdefault("timeout", 10)
-    response = requests.request(method, url, headers=headers, timeout=kwargs.get("timeout", 10), **kwargs)
+    # .pop() en vez de .get()/.setdefault(): SACA "timeout" de kwargs
+    # si estaba ahí, dejando kwargs limpio. Así nunca queda duplicado
+    # al pasar timeout=... explícito Y **kwargs al mismo tiempo.
+    timeout = kwargs.pop("timeout", 10)
+    response = requests.request(method, url, headers=headers, timeout=timeout, **kwargs)
 
     if response.status_code == 401 and st.session_state.refresh_token:
         refresh_resp = api_refresh()
         if refresh_resp.ok:
             st.session_state.token = refresh_resp.json()["access_token"]
             headers.update(auth_headers())  # headers con el token ya renovado
-            response = requests.request(method, url, headers=headers, timeout=kwargs.get("timeout", 10), **kwargs)
+            response = requests.request(method, url, headers=headers, timeout=timeout, **kwargs)
         else:
             st.session_state.token = None
             st.session_state.refresh_token = None
