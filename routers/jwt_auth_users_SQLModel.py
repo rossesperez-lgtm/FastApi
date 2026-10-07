@@ -584,5 +584,33 @@ async def admin_dashboard(user = Depends(current_user)):
     return {"message": "Panel secreto"}
 
 
+@router.post("/bootstrap-admin")
+async def bootstrap_admin(
+    username: str,
+    secret: str,
+    session: Session = Depends(get_session),
+):
+    """Endpoint TEMPORAL para ascender al primer admin en un despliegue
+    nuevo, donde no hay acceso directo a la base de datos. Protegido
+    por un secreto propio (BOOTSTRAP_SECRET), distinto de SECRET_KEY.
+    ⚠️ Borrar este endpoint (y la variable BOOTSTRAP_SECRET) una vez usado.
+    """
+    secreto_esperado = os.environ.get("BOOTSTRAP_SECRET")
+    if not secreto_esperado or secret != secreto_esperado:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Secreto incorrecto.",
+        )
 
+    user = search_user(username, session)
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    user.role = "admin"
+    session.add(user)
+    session.commit()
+
+    return {"mensaje": f"'{username}' ahora tiene rol admin"}
+
+#python3.14.exe -c "import secrets; print(secrets.token_hex(32))"  # Genera un secreto aleatorio de 64 caracteres hexadecimales
 
