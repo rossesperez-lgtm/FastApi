@@ -11,7 +11,7 @@ from database import create_db_and_tables
 async def lifespan(app: FastAPI):
     """Inicializa la base de datos al iniciar la aplicación."""
     # Código que se ejecuta AL ARRANCAR la aplicación
-    create_db_and_tables()
+    #create_db_and_tables()
     yield
     # (Opcional) Código que se ejecutaría al apagar la aplicación
 
