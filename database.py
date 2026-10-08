@@ -12,13 +12,16 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if DATABASE_URL:
     # Postgres NO necesita connect_args especiales como SQLite.
-    engine = create_engine(DATABASE_URL, echo=True)
+    engine = create_engine(DATABASE_URL, echo=os.environ.get("SQL_ECHO") == "1")
 else:
     SQLITE_FILE_NAME = "database.db"
     SQLITE_URL = f"sqlite:///{SQLITE_FILE_NAME}"
     connect_args = {"check_same_thread": False}
-    engine = create_engine(DATABASE_URL, echo=os.environ.get("SQL_ECHO") == "1")
-
+    engine = create_engine(
+        SQLITE_URL,
+        echo=os.environ.get("SQL_ECHO") == "1",
+        connect_args=connect_args,
+    )
 
 def create_db_and_tables():
     """Crea las tablas si aún no existen — funciona igual sin importar
