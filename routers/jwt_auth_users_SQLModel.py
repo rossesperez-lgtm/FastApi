@@ -80,6 +80,7 @@ class User(SQLModel, table=True):
     Activo: bool = True
     password: str  # Aquí guardaremos el hash de la contraseña
     role: str = Field(default="user")  # Por defecto, todos los usuarios son 'user'
+    telefono: Optional[str] = None
 
     # Esto crea la relación inversa: desde el usuario podrás ver sus items
     items: list["Item"] = Relationship(
