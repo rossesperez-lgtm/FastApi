@@ -17,7 +17,7 @@ else:
     SQLITE_FILE_NAME = "database.db"
     SQLITE_URL = f"sqlite:///{SQLITE_FILE_NAME}"
     connect_args = {"check_same_thread": False}
-    engine = create_engine(SQLITE_URL, echo=True, connect_args=connect_args)
+    engine = create_engine(DATABASE_URL, echo=os.environ.get("SQL_ECHO") == "1")
 
 
 def create_db_and_tables():
