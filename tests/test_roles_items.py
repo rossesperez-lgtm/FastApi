@@ -184,3 +184,68 @@ def test_only_admin_can_change_role_field(client, session):
     )
 
     assert response.status_code == 403
+
+
+# ------------------------------------------------------------
+# Pendientes cerrados: /users/me sin hash y /users protegido
+# ------------------------------------------------------------
+
+def test_users_me_does_not_expose_password_hash(client):
+    """La respuesta de /users/me no debe incluir el campo password."""
+    headers = registrar_y_loguear(client, "perfiluser")
+
+    response = client.get("/AccesoJwt_SQLModel/users/me", headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["UserName"] == "perfiluser"
+    assert "password" not in body
+
+
+def test_refresh_token_cannot_access_users_me(client):
+    """Un refresh token no debe servir para llamar a endpoints protegidos."""
+    client.post(
+        "/AccesoJwt_SQLModel/register",
+        json={
+            "UserName": "refreshme",
+            "NombreCompleto": "Refresh Me",
+            "email": "refreshme@example.com",
+            "password": "Clave123",
+        },
+    )
+    login = client.post(
+        "/AccesoJwt_SQLModel/login",
+        data={"username": "refreshme", "password": "Clave123"},
+    )
+    refresh_token = login.json()["refresh_token"]
+
+    response = client.get(
+        "/AccesoJwt_SQLModel/users/me",
+        headers={"Authorization": f"Bearer {refresh_token}"},
+    )
+
+    assert response.status_code == 401
+
+
+def test_users_list_requires_authentication(client):
+    """Sin token, la lista de usuarios debe rechazarse con 401."""
+    response = client.get("/AccesoJwt_SQLModel/users")
+    assert response.status_code == 401
+
+
+def test_normal_user_cannot_list_users(client):
+    """Un usuario común autenticado no debe ver la lista (403)."""
+    headers = registrar_y_loguear(client, "curioso")
+    response = client.get("/AccesoJwt_SQLModel/users", headers=headers)
+    assert response.status_code == 403
+
+
+def test_admin_can_list_users(client, session):
+    """Un admin sí puede ver la lista de usuarios."""
+    crear_admin_directo(session)
+    headers = login_headers(client, "admin_test", "ClaveAdmin123")
+
+    response = client.get("/AccesoJwt_SQLModel/users", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["total_usuarios"] >= 1

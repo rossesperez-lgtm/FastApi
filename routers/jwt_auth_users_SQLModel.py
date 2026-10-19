@@ -12,7 +12,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlmodel import Field, Relationship, SQLModel, Session, desc, asc, select, or_
-from typing import List, Optional
+from typing import Optional
 from pydantic import EmailStr, field_validator
 import re
 from typing import Literal
@@ -151,6 +151,18 @@ class UserUpdate(SQLModel):
             raise ValueError("La contraseña debe incluir al menos un número.")
         return value
 
+class UserPublic(SQLModel):
+    """Campos de un usuario que SI pueden salir en una respuesta.
+    A propósito no incluye 'password' (el hash nunca debe salir).
+    """
+    UserName: str
+    NombreCompleto: str
+    email: str
+    Activo: bool
+    role: str
+    telefono: Optional[str] = None
+
+
 class ItemCreate(SQLModel):
     """Datos que el cliente envía al crear un ítem.
     Sin 'id' (lo genera la base de datos) ni 'owner_username'
@@ -224,7 +236,7 @@ async def current_user(
 
     return user
 
-from .security import verify_admin_role, require_role, require_any_role
+from .security import verify_admin_role, require_role, require_any_role # noqa: E402
 
 # --- ENDPOINTS ---
 
@@ -317,8 +329,12 @@ async def refresh_access_token(
 
 
 @router.get("/users", status_code=status.HTTP_200_OK)
-async def get_all_users(session: Session = Depends(get_session)):
-    """Retorna todos los usuarios desde la base de datos."""
+#async def get_all_users(session: Session = Depends(get_session)):
+async def get_all_users(
+    caller: User = Depends(require_any_role("admin", "editor")),
+    session: Session = Depends(get_session),
+):
+    """Retorna todos los usuarios. Solo admin o editor."""
     statement = select(User)
     users = session.exec(statement).all()
 
@@ -381,32 +397,42 @@ async def change_user_role(
     }
 
 
-@router.get("/users/me")
-async def read_users_me(
-    token: str = Depends(oauth2), session: Session = Depends(get_session)
-):
-    """Devuelve la información del usuario autenticado a partir del token JWT."""
+#@router.get("/users/me")
+#async def read_users_me(
+#    token: str = Depends(oauth2), session: Session = Depends(get_session)
+#):
+@router.get("/users/me", response_model=UserPublic)
+async def read_users_me(user: User = Depends(current_user)):
+    """Devuelve la información del usuario autenticado a partir del token JWT,
+      sin el hash de la contraseña.
+      
+    response_model=UserPublic filtra la respuesta: aunque 'user' sea el
+    objeto completo de la tabla, solo salen los campos de UserPublic.
+    Y al reutilizar current_user, esta ruta valida el tipo de token y que
+    el usuario esté activo, igual que el resto.      
+      """
+   
     # 1. Decodificamos el token o reutilizamos la función que busca al usuario actual
     # (asumiendo que tienes una función o lógica que valida el token y extrae el username)
     # Por ejemplo, decodificando el JWT para obtener el 'sub' (username):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="No se pudieron validar las credenciales",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    #   credentials_exception = HTTPException(
+    #     status_code=status.HTTP_401_UNAUTHORIZED,
+    #     detail="No se pudieron validar las credenciales",
+    #     headers={"WWW-Authenticate": "Bearer"},
+    # )
 
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-    except JWTError as exc:
-        raise credentials_exception from exc
+    # try:
+    #     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    #     username: str = payload.get("sub")
+    #     if username is None:
+    #         raise credentials_exception
+    # except JWTError as exc:
+    #     raise credentials_exception from exc
 
-    # 2. Buscamos al usuario en la base de datos SQLite usando la sesión
-    user = search_user(username, session)
-    if user is None:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    # # 2. Buscamos al usuario en la base de datos SQLite usando la sesión
+    # user = search_user(username, session)
+    # if user is None:
+    #     raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
     return user
 
@@ -615,3 +641,6 @@ async def bootstrap_admin(
 
 #python3.14.exe -c "import secrets; print(secrets.token_hex(32))"  # Genera un secreto aleatorio de 64 caracteres hexadecimales
 
+# python3.14.exe -m uvicorn jwt_auth_users:app --reload    
+
+ #python3.14.exe -m pytest -v

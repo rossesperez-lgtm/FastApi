@@ -123,7 +123,7 @@ def api_update_item(item_id, title, description):
 
 def api_get_all_users():
     """Obtiene la lista de usuarios registrados desde la API."""
-    return requests.get(f"{BASE_URL}/users", timeout=TIMEOUT)
+    return authenticated_request("GET", f"{BASE_URL}/users")
 
 
 def api_update_user(username, **campos):
