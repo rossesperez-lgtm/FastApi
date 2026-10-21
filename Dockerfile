@@ -19,8 +19,8 @@ WORKDIR /app
 # 1) Primero SOLO la lista de dependencias y su instalación.
 #    Esta capa solo se reconstruye si cambia requirements-api.txt, así
 #    modificar tu código no vuelve a descargar todas las librerías.
-COPY requirements-api.txt .
-RUN pip install --no-cache-dir -r requirements-api.txt
+COPY requirements-api.lock .
+RUN pip install --no-cache-dir -r requirements-api.lock
 
 # 2) Usuario sin privilegios: si alguien vulnerara la app, no sería root.
 RUN useradd --create-home appuser
