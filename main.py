@@ -1,7 +1,7 @@
 from contextlib import (asynccontextmanager,)
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from routers import products, users, jwt_auth_users, jwt_auth_users_SQLModel, basic_auth_users
+from routers import products, users, jwt_auth_users, jwt_auth_users_SQLModel, basic_auth_users, users_db
 from database import create_db_and_tables
 
 
@@ -26,6 +26,7 @@ app.include_router(users.router)
 #app.include_router(jwt_auth_users.router)
 app.include_router(jwt_auth_users_SQLModel.router)
 #app.include_router(basic_auth_users.router)
+#app.include_router(users_db.router)
 app.mount("/statico", StaticFiles(directory="Static"), name="statico")
 
 @app.get("/")
