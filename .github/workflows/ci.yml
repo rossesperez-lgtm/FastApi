@@ -1,0 +1,79 @@
+# ============================================================
+# .github/workflows/ci.yml — Integración continua (CI)
+# ============================================================
+# GitHub ejecuta este archivo en una máquina virtual limpia cada vez que
+# haces push a main o abres un pull request. Si algo falla, lo ves en la
+# pestaña "Actions" de tu repositorio (verde o rojo), sin depender de que
+# te acuerdes de correr los tests a mano.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+
+  # --- Trabajo 1: correr los tests ---
+  tests:
+    runs-on: ubuntu-latest        # la máquina virtual (runner) donde se ejecuta
+    steps:
+      # Descarga el código del repositorio en el runner.
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+          # Guarda en caché las librerías descargadas para acelerar las próximas ejecuciones.
+          cache: pip
+          cache-dependency-path: requirements-api.lock
+
+      - name: Instalar dependencias
+        run: |
+          pip install -r requirements-api.lock
+          pip install pytest httpx
+
+      - name: Ejecutar tests
+        env:
+          # Valor falso, solo para que la app pueda arrancar en CI.
+          # Los secretos reales nunca se escriben en este archivo (se sube a git):
+          # van en Settings > Secrets and variables > Actions del repositorio.
+          SECRET_KEY: clave-falsa-solo-para-ci
+        run: pytest -v
+
+  # --- Trabajo 2: construir la imagen y comprobar que la API responde ---
+  docker:
+    runs-on: ubuntu-latest
+    needs: tests                  # solo corre si el trabajo "tests" pasó
+    env:
+      # docker-compose.yml lee estas variables igual que lee tu .env en local.
+      POSTGRES_USER: ci
+      POSTGRES_PASSWORD: ci_password_123
+      POSTGRES_DB: ci_db
+      SECRET_KEY: clave-falsa-solo-para-ci
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Construir y levantar API + Postgres
+        run: docker compose up -d --build
+
+      # "Prueba de humo": pide /openapi.json. Si la API arrancó pero alguna ruta
+      # está rota, este endpoint devuelve 500 y curl -f hace fallar el paso.
+      - name: Comprobar que la API genera su documentación
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/openapi.json > /dev/null; then
+              echo "La API responde correctamente"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "La API no respondió a tiempo"
+          docker compose logs
+          exit 1
+
+      # always(): se ejecuta aunque los pasos anteriores hayan fallado.
+      - name: Detener y limpiar
+        if: always()
+        run: docker compose down -v
