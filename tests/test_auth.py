@@ -27,7 +27,7 @@ def test_register_success(client):
             "password": "Clave123",
         },
     )
-    assert response.status_code == 200
+    assert response.status_code == 201
     assert response.json()["usuario"] == "testuser"
 
 
